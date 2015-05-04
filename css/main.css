@@ -1,0 +1,71 @@
+* {
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body, 
+.container {
+	height: 100%;
+}
+
+body {
+	font-family: 'Roboto', sans-serif;
+}
+
+.container {
+	background-color: #F1F1F1;
+}
+
+.sidebar {
+	float: left;
+	vertical-align: top;
+	height: calc(100% - 50px);
+	width: 300px;
+	overflow-y: auto;
+	background-color: white;
+}
+
+.sidebar ul {
+	list-style-type: none;
+	position: relative;
+	background: #fff;
+}
+
+.sidebar ul li {
+	font-size: .85em;
+	overflow: hidden;
+	padding: 10px 20px;
+	cursor: pointer;
+	border-bottom: 1px solid #f0f0f0;
+	min-height: 30px;
+}
+
+.audios{
+	height: calc(100% - 90px);
+	width: calc(100% - 340px);
+	padding: 20px;
+	overflow-y: auto;
+}
+
+.audios ul {
+	list-style-type: none;
+	position: relative;
+	background: #fff;
+	box-shadow: 3px 3px 3px 3px rgba(0,0,0,.1);
+}
+
+.audios ul li {
+	font-size: .85em;
+	overflow: hidden;
+	padding: 10px 20px;
+	cursor: pointer;
+	border-bottom: 1px solid #f0f0f0;
+	min-height: 30px;
+}
+
+.player {
+	height: 50px;
+	clear: both;
+	background-color: #e74c3c;
+}
