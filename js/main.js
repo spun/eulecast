@@ -9,7 +9,7 @@ React.render(
   React.createElement(APP, null),
   document.body);
 
-},{"./components/app":167,"./utils/DriveAPI":179,"react":162}],2:[function(require,module,exports){
+},{"./components/app":166,"./utils/DriveAPI":184,"react":162}],2:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5059,7 +5059,7 @@ if ("production" !== process.env.NODE_ENV) {
       if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'undefined') {
         console.debug(
           'Download the React DevTools for a better development experience: ' +
-          'http://fb.me/react-devtools'
+          'https://fb.me/react-devtools'
         );
       }
     }
@@ -5086,7 +5086,7 @@ if ("production" !== process.env.NODE_ENV) {
       if (!expectedFeatures[i]) {
         console.error(
           'One or more ES5 shim/shams expected by React are not available: ' +
-          'http://fb.me/react-warning-polyfills'
+          'https://fb.me/react-warning-polyfills'
         );
         break;
       }
@@ -5094,7 +5094,7 @@ if ("production" !== process.env.NODE_ENV) {
   }
 }
 
-React.version = '0.13.2';
+React.version = '0.13.3';
 
 module.exports = React;
 
@@ -6601,7 +6601,7 @@ var ReactClass = {
         ("production" !== process.env.NODE_ENV ? warning(
           this instanceof Constructor,
           'Something is calling a React component directly. Use a factory or ' +
-          'JSX instead. See: http://fb.me/react-legacyfactory'
+          'JSX instead. See: https://fb.me/react-legacyfactory'
         ) : null);
       }
 
@@ -6813,20 +6813,38 @@ ReactComponent.prototype.forceUpdate = function(callback) {
  */
 if ("production" !== process.env.NODE_ENV) {
   var deprecatedAPIs = {
-    getDOMNode: 'getDOMNode',
-    isMounted: 'isMounted',
-    replaceProps: 'replaceProps',
-    replaceState: 'replaceState',
-    setProps: 'setProps'
+    getDOMNode: [
+      'getDOMNode',
+      'Use React.findDOMNode(component) instead.'
+    ],
+    isMounted: [
+      'isMounted',
+      'Instead, make sure to clean up subscriptions and pending requests in ' +
+      'componentWillUnmount to prevent memory leaks.'
+    ],
+    replaceProps: [
+      'replaceProps',
+      'Instead, call React.render again at the top level.'
+    ],
+    replaceState: [
+      'replaceState',
+      'Refactor your code to use setState instead (see ' +
+      'https://github.com/facebook/react/issues/3236).'
+    ],
+    setProps: [
+      'setProps',
+      'Instead, call React.render again at the top level.'
+    ]
   };
-  var defineDeprecationWarning = function(methodName, displayName) {
+  var defineDeprecationWarning = function(methodName, info) {
     try {
       Object.defineProperty(ReactComponent.prototype, methodName, {
         get: function() {
           ("production" !== process.env.NODE_ENV ? warning(
             false,
-            '%s(...) is deprecated in plain JavaScript React classes.',
-            displayName
+            '%s(...) is deprecated in plain JavaScript React classes. %s',
+            info[0],
+            info[1]
           ) : null);
           return undefined;
         }
@@ -7175,6 +7193,7 @@ var ReactCompositeComponentMixin = {
     this._pendingReplaceState = false;
     this._pendingForceUpdate = false;
 
+    var childContext;
     var renderedElement;
 
     var previouslyMounting = ReactLifeCycle.currentlyMountingInstance;
@@ -7189,7 +7208,8 @@ var ReactCompositeComponentMixin = {
         }
       }
 
-      renderedElement = this._renderValidatedComponent();
+      childContext = this._getValidatedChildContext(context);
+      renderedElement = this._renderValidatedComponent(childContext);
     } finally {
       ReactLifeCycle.currentlyMountingInstance = previouslyMounting;
     }
@@ -7203,7 +7223,7 @@ var ReactCompositeComponentMixin = {
       this._renderedComponent,
       rootID,
       transaction,
-      this._processChildContext(context)
+      this._mergeChildContext(context, childContext)
     );
     if (inst.componentDidMount) {
       transaction.getReactMountReady().enqueue(inst.componentDidMount, inst);
@@ -7333,7 +7353,7 @@ var ReactCompositeComponentMixin = {
    * @return {object}
    * @private
    */
-  _processChildContext: function(currentContext) {
+  _getValidatedChildContext: function(currentContext) {
     var inst = this._instance;
     var childContext = inst.getChildContext && inst.getChildContext();
     if (childContext) {
@@ -7358,6 +7378,13 @@ var ReactCompositeComponentMixin = {
           name
         ) : invariant(name in inst.constructor.childContextTypes));
       }
+      return childContext;
+    }
+    return null;
+  },
+
+  _mergeChildContext: function(currentContext, childContext) {
+    if (childContext) {
       return assign({}, currentContext, childContext);
     }
     return currentContext;
@@ -7617,6 +7644,10 @@ var ReactCompositeComponentMixin = {
       return inst.state;
     }
 
+    if (replace && queue.length === 1) {
+      return queue[0];
+    }
+
     var nextState = assign({}, replace ? queue[0] : inst.state);
     for (var i = replace ? 1 : 0; i < queue.length; i++) {
       var partial = queue[i];
@@ -7686,13 +7717,14 @@ var ReactCompositeComponentMixin = {
   _updateRenderedComponent: function(transaction, context) {
     var prevComponentInstance = this._renderedComponent;
     var prevRenderedElement = prevComponentInstance._currentElement;
-    var nextRenderedElement = this._renderValidatedComponent();
+    var childContext = this._getValidatedChildContext();
+    var nextRenderedElement = this._renderValidatedComponent(childContext);
     if (shouldUpdateReactComponent(prevRenderedElement, nextRenderedElement)) {
       ReactReconciler.receiveComponent(
         prevComponentInstance,
         nextRenderedElement,
         transaction,
-        this._processChildContext(context)
+        this._mergeChildContext(context, childContext)
       );
     } else {
       // These two IDs are actually the same! But nothing should rely on that.
@@ -7708,7 +7740,7 @@ var ReactCompositeComponentMixin = {
         this._renderedComponent,
         thisID,
         transaction,
-        this._processChildContext(context)
+        this._mergeChildContext(context, childContext)
       );
       this._replaceNodeWithMarkupByID(prevComponentID, nextMarkup);
     }
@@ -7746,11 +7778,12 @@ var ReactCompositeComponentMixin = {
   /**
    * @private
    */
-  _renderValidatedComponent: function() {
+  _renderValidatedComponent: function(childContext) {
     var renderedComponent;
     var previousContext = ReactContext.current;
-    ReactContext.current = this._processChildContext(
-      this._currentElement._context
+    ReactContext.current = this._mergeChildContext(
+      this._currentElement._context,
+      childContext
     );
     ReactCurrentOwner.current = this;
     try {
@@ -8119,6 +8152,7 @@ var ReactDOM = mapObject({
 
   // SVG
   circle: 'circle',
+  clipPath: 'clipPath',
   defs: 'defs',
   ellipse: 'ellipse',
   g: 'g',
@@ -8270,11 +8304,13 @@ function assertValidProps(props) {
       'Can only set one of `children` or `props.dangerouslySetInnerHTML`.'
     ) : invariant(props.children == null));
     ("production" !== process.env.NODE_ENV ? invariant(
-      props.dangerouslySetInnerHTML.__html != null,
+      typeof props.dangerouslySetInnerHTML === 'object' &&
+      '__html' in props.dangerouslySetInnerHTML,
       '`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' +
-      'Please visit http://fb.me/react-invariant-dangerously-set-inner-html ' +
+      'Please visit https://fb.me/react-invariant-dangerously-set-inner-html ' +
       'for more information.'
-    ) : invariant(props.dangerouslySetInnerHTML.__html != null));
+    ) : invariant(typeof props.dangerouslySetInnerHTML === 'object' &&
+    '__html' in props.dangerouslySetInnerHTML));
   }
   if ("production" !== process.env.NODE_ENV) {
     ("production" !== process.env.NODE_ENV ? warning(
@@ -11080,7 +11116,7 @@ function warnAndMonitorForKeyUse(message, element, parentType) {
 
   ("production" !== process.env.NODE_ENV ? warning(
     false,
-    message + '%s%s See http://fb.me/react-warning-keys for more information.',
+    message + '%s%s See https://fb.me/react-warning-keys for more information.',
     parentOrOwnerAddendum,
     childOwnerAddendum
   ) : null);
@@ -15901,6 +15937,7 @@ var MUST_USE_ATTRIBUTE = DOMProperty.injection.MUST_USE_ATTRIBUTE;
 
 var SVGDOMPropertyConfig = {
   Properties: {
+    clipPath: MUST_USE_ATTRIBUTE,
     cx: MUST_USE_ATTRIBUTE,
     cy: MUST_USE_ATTRIBUTE,
     d: MUST_USE_ATTRIBUTE,
@@ -15946,6 +15983,7 @@ var SVGDOMPropertyConfig = {
     y: MUST_USE_ATTRIBUTE
   },
   DOMAttributeNames: {
+    clipPath: 'clip-path',
     fillOpacity: 'fill-opacity',
     fontFamily: 'font-family',
     fontSize: 'font-size',
@@ -18758,6 +18796,7 @@ var shouldWrap = {
   // Force wrapping for SVG elements because if they get created inside a <div>,
   // they will be initialized in the wrong namespace (and will not display).
   'circle': true,
+  'clipPath': true,
   'defs': true,
   'ellipse': true,
   'g': true,
@@ -18800,6 +18839,7 @@ var markupWrap = {
   'th': trWrap,
 
   'circle': svgWrap,
+  'clipPath': svgWrap,
   'defs': svgWrap,
   'ellipse': svgWrap,
   'g': svgWrap,
@@ -20435,8 +20475,8 @@ module.exports = require('./lib/React');
 var AppConstants = require('../constants/AppConstants');
 var AppDispatcher = require('../dispatchers/AppDispatcher');
 
-var AudiosAction = {
-    select: function (item) {
+var PodcastAction = {
+    selectAudio: function (item) {
         'use strict';
         AppDispatcher.dispatch({
             actionType: AppConstants.SELECT_AUDIO,
@@ -20445,9 +20485,9 @@ var AudiosAction = {
     }
 };
 
-module.exports = AudiosAction;
+module.exports = PodcastAction;
 
-},{"../constants/AppConstants":174,"../dispatchers/AppDispatcher":175}],164:[function(require,module,exports){
+},{"../constants/AppConstants":179,"../dispatchers/AppDispatcher":180}],164:[function(require,module,exports){
 /*jslint node: true */
 
 var AppConstants = require('../constants/AppConstants');
@@ -20484,76 +20524,49 @@ var SubscripctionsAction = {
             actionType: AppConstants.REMOVE_SUBSCRIPTION,
             item: item
         });
+    },
+
+    updateInfo: function (item) {
+        'use strict';
+        AppDispatcher.dispatch({
+            actionType: AppConstants.UPDATE_SUBSCRIPTION_INFO,
+            item: item
+        });
     }
 };
 
 module.exports = SubscripctionsAction;
 
-},{"../constants/AppConstants":174,"../dispatchers/AppDispatcher":175}],165:[function(require,module,exports){
+},{"../constants/AppConstants":179,"../dispatchers/AppDispatcher":180}],165:[function(require,module,exports){
 var React = require('react');
-var AudiosStore = require('../stores/AudiosStore');
-var AudiosListItem = require('../components/AudiosListItem');
+var AudiosStore = require('../../stores/PodcastStore');
+var PodcastInfo = require('../../components/podcast/PodcastInfo');
+var PodcastAudiosList = require('../../components/podcast/PodcastAudiosList');
 
-function audiosItems() {
-    return {items: AudiosStore.getAudios()};
-}
+var Podcast = React.createClass({displayName: "Podcast",
 
-var AudiosList = React.createClass({displayName: "AudiosList",
-    getInitialState: function () {
-        return {items: []};
-    },
-
-    componentWillMount: function (){
-        AudiosStore.addChangeListener(this._onChange);
-    },
-
-    _onChange: function () {
-        this.setState(audiosItems());
-    },
-
-	handleClick:function () {
-
-    },
     render: function () {
-        var items = this.state.items.map(function(item, id) {
-            return React.createElement(AudiosListItem, {key: id, item: item})
-        });
+
         return (
-            React.createElement("div", {className: "audios"}, 
-                React.createElement("ul", null, 
-                    items
+            React.createElement("div", {className: "podcast-wrapper"}, 
+                React.createElement("div", {className: "podcast"}, 
+                    React.createElement(PodcastInfo, null), 
+                    React.createElement(PodcastAudiosList, null)
                 )
             )
         );
     }
 });
 
-module.exports = AudiosList;
+module.exports = Podcast;
 
-},{"../components/AudiosListItem":166,"../stores/AudiosStore":176,"react":162}],166:[function(require,module,exports){
-var AudiosAction = require('../actions/AudiosAction');
-var React = require('react');
-
-var AudiosListItem = React.createClass({displayName: "AudiosListItem",
-
-	handleClick: function () {
-		AudiosAction.select(this.props.item);
-	},
-
-	render: function () {
-		return React.createElement("li", {onClick: this.handleClick}, this.props.item.title)
-	}
-});
-
-module.exports = AudiosListItem;
-
-},{"../actions/AudiosAction":163,"react":162}],167:[function(require,module,exports){
+},{"../../components/podcast/PodcastAudiosList":173,"../../components/podcast/PodcastInfo":175,"../../stores/PodcastStore":182,"react":162}],166:[function(require,module,exports){
 /** @jsx React.DOM */
 
 var React = require('react');
 var Subscriptions = require('../components/subscriptions/Subscriptions');
 var PlayList = require('../components/playlist');
-var AudiosList = require('../components/AudiosList');
+var Podcast = require('../components/Podcast/Podcast');
 var Player = require('../components/player/Player');
 
 var APP = React.createClass({displayName: "APP",
@@ -20561,7 +20574,7 @@ var APP = React.createClass({displayName: "APP",
         return (
             React.createElement("div", {className: "container"}, 
                 React.createElement(Subscriptions, null), 
-                React.createElement(AudiosList, null), 
+                React.createElement(Podcast, null), 
                 React.createElement(Player, null)
             )                    
         )
@@ -20570,7 +20583,26 @@ var APP = React.createClass({displayName: "APP",
 
 module.exports = APP;
 
-},{"../components/AudiosList":165,"../components/player/Player":169,"../components/playlist":170,"../components/subscriptions/Subscriptions":171,"react":162}],168:[function(require,module,exports){
+},{"../components/Podcast/Podcast":165,"../components/player/Player":169,"../components/playlist":172,"../components/subscriptions/Subscriptions":176,"react":162}],167:[function(require,module,exports){
+var React = require('react');
+
+var CastButton = React.createClass({displayName: "CastButton",
+
+    render: function () {
+
+		return (
+			React.createElement("svg", {className: "player-icon", xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24"}, 
+                React.createElement("path", {d: "M0 0h24v24H0z", opacity: ".1", fill: "none"}), 
+                React.createElement("path", {d: "M0 0h24v24H0z", fill: "none"}), 
+                React.createElement("path", {d: "M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z"})
+            )
+		);
+    }
+});
+
+module.exports = CastButton;
+
+},{"react":162}],168:[function(require,module,exports){
 var React = require('react');
 
 var PlayButton = React.createClass({displayName: "PlayButton",
@@ -20580,10 +20612,24 @@ var PlayButton = React.createClass({displayName: "PlayButton",
 	}, 
 
     render: function () {
-    	var textButton = this.props.isPlaying ? 'Pause' : 'Play';
+    	var button;
+		if (this.props.isPlaying) {
+			button = React.createElement("svg", {className: "player-play-button", xmlns: "http://www.w3.org/2000/svg", width: "48", height: "48", viewBox: "0 0 48 48"}, 
+					    React.createElement("path", {d: "M0 0h48v48H0z", fill: "none"}), 
+					    React.createElement("path", {d: "M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-2 28h-4V16h4v16zm8 0h-4V16h4v16z"})
+					);
+		} else {
+			button = React.createElement("svg", {className: "player-play-button", xmlns: "http://www.w3.org/2000/svg", width: "48", height: "48", viewBox: "0 0 48 48"}, 
+					    React.createElement("path", {d: "M0 0h48v48H0z", fill: "none"}), 
+					    React.createElement("path", {d: "M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-4 29V15l12 9-12 9z"})
+					);
+		}
+
 
 		return (
-			React.createElement("button", {onClick: this.handleClick}, textButton)
+			React.createElement("div", {onClick: this.handleClick}, 
+				button
+			)
 		);
     }
 });
@@ -20594,25 +20640,73 @@ module.exports = PlayButton;
 var React = require('react');
 var PlayerStore = require('../../stores/PlayerStore');
 var PlayButton = require('../../components/player/PlayButton');
-
+var VolumeBar = require('../../components/player/VolumeBar');
+var ProgressBar = require('../../components/player/ProgressBar');
+var CastButton = require('../../components/player/CastButton');
 
 
 function playerAudio() {
     return PlayerStore.getAudio();
 }
 
+function toHHMMSS(time) {
+    var sec_num = parseInt(time, 10);
+    var hours   = Math.floor(sec_num / 3600);
+    var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+    var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+    if (hours   < 10) {hours   = "0"+hours;}
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+    var time    = hours+':'+minutes+':'+seconds;
+    return time;
+}
+
+
 var player = React.createClass({displayName: "player",
 
     getInitialState: function () {
 		return {
             castStatus: "iddle",
-            audio: new Audio(),
-            isPlaying: false
+            isPlaying: false,
+            audio_player: new Audio(),            
+            audio_title: "-",
+            audio_podcast: "-",
+            audio_image: "",
+            audio_time: toHHMMSS(0),
+            audio_duration: toHHMMSS(0),
+            audio_volume: 100
         };
     },
 
     componentDidMount: function () {
-    	
+        var component = this;
+        document.body.addEventListener('keydown', function(e) {
+            if(e.keyCode == 32) {
+                component.handlePlayPause();
+                e.preventDefault();
+                e.stopPropagation();
+            } else if(e.keyCode == 37) {
+                component.flashback();
+                e.preventDefault();
+                e.stopPropagation();
+            } else if(e.keyCode == 39) { 
+                component.flashforward();
+                e.preventDefault();
+                e.stopPropagation();
+            } else if(e.keyCode == 38) {                
+                console.log('Up');
+            } else if(e.keyCode == 40) {                
+                console.log('Down');
+            }
+        });
+        this.state.audio_player.addEventListener('timeupdate', this.ontimeupdate); 
+        this.state.audio_player.addEventListener('durationchange', function() {
+            var audioPlayer = component.state.audio_player;
+            component.setState({
+                audio_duration: toHHMMSS(Math.round(audioPlayer.duration))
+            });
+        }); 
     },
 
     ontimeupdate: function () {
@@ -20624,21 +20718,64 @@ var player = React.createClass({displayName: "player",
     },
 
     _onChange: function () {
-        this.setState({
-            isPlaying: true
+
+        var audioData = playerAudio();
+        var audioPlayer = this.state.audio_player;
+
+        this.state.audio_player.src = audioData.audio.enclosure.url;
+
+        this.setState({ 
+            isPlaying: true,                       
+            audio_title: audioData.audio.title,
+            audio_podcast: audioData.podcast.name,
+            audio_image: audioData.podcast.imageUrl,         
         });
 
-        this.state.audio.src = playerAudio();
-        this.state.audio.play();
+        this.state.audio_player.play();
     },
 
-    update: function (progress) {
+    ontimeupdate: function() {
+        var audioPlayer = this.state.audio_player;
+        var number = audioPlayer.currentTime * 100 / audioPlayer.duration;
 
+        this.updateProgressBar(number);
+        this.updateTimer(number);
+
+        if (number === 100) {
+            return this.setState({
+                isPlaying: false
+            });
+        }
     },
 
+    updateProgressBar: function (progress) {
+        var percent = Math.min(progress, 100);
+        var bar = this.refs.progressbar.getDOMNode();
+        bar.value = percent;
+    },
 
-    playPause: function () {
-        var state = this.state.audio;
+    updateTimer: function (progress) {
+
+        var audioPlayer = this.state.audio_player;
+        this.setState({
+            audio_time: toHHMMSS(Math.round(audioPlayer.currentTime)),
+        });
+    },
+
+    handleProgressChange: function() {
+        this.state.audio_player.pause();
+        var newRangeValue = this.refs.progressbar.getDOMNode().value;
+        this.state.audio_player.currentTime = newRangeValue * this.state.audio_player.duration / 100;
+        this.state.audio_player.play();
+    },
+
+    handleVolumeChange: function(event) {        
+        var newVolumeValue = event.refs.volumebar.getDOMNode().value;
+        this.state.audio_player.volume = newVolumeValue / 100;;
+    },
+
+    handlePlayPause: function () {
+        var state = this.state.audio_player;
         var isPlaying = this.state.isPlaying;
 
         this.setState({
@@ -20651,12 +20788,47 @@ var player = React.createClass({displayName: "player",
         return state.play();
     },
 
+    flashback: function() {
+        this.state.audio_player.pause();
+        this.state.audio_player.currentTime = this.state.audio_player.currentTime - 30;
+        this.state.audio_player.play();        
+    },
+
+    flashforward: function() {
+        this.state.audio_player.pause();
+        this.state.audio_player.currentTime = this.state.audio_player.currentTime +30;
+        this.state.audio_player.play();        
+    },
+
     render: function () {
     	return (
 			React.createElement("div", {className: "player"}, 
-			    React.createElement("button", {disabled: true}, "-30"), 
-			    React.createElement(PlayButton, {onClick: this.playPause, isPlaying: this.state.isPlaying}), 
-                React.createElement("button", {disabled: true}, "+30")
+                React.createElement("div", {className: "player-top"}, 
+                    React.createElement("input", {type: "range", ref: "progressbar", onChange: this.handleProgressChange, className: "player-icon", min: "0", max: "100"})
+                ), 
+                React.createElement("div", {className: "player-left"}, 
+                    React.createElement("img", {className: "now-playing-image", src: this.state.audio_image}), 
+                    React.createElement("div", {className: "now-playing-text"}, 
+                        React.createElement("p", {className: "podcast-name"}, this.state.audio_podcast), 
+                        React.createElement("p", {className: "audio-title"}, this.state.audio_title), 
+                        React.createElement("p", {className: "audio-title"}, this.state.audio_time, " / ", this.state.audio_duration)
+                    )
+                ), 
+                React.createElement("div", {className: "player-middle"}, 
+                    React.createElement("svg", {onClick: this.flashback, title: "-30", className: "player-icon", xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24"}, 
+                        React.createElement("path", {d: "M0 0h24v24H0z", fill: "none"}), 
+                        React.createElement("path", {d: "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"})
+                    ), 
+                    React.createElement(PlayButton, {onClick: this.handlePlayPause, isPlaying: this.state.isPlaying}), 
+                    React.createElement("svg", {onClick: this.flashforward, title: "+30", className: "player-icon", xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24"}, 
+                        React.createElement("path", {d: "M0 0h24v24H0z", fill: "none"}), 
+                        React.createElement("path", {d: "M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"})
+                    )
+                ), 
+                React.createElement("div", {className: "player-right"}, 
+                    React.createElement(VolumeBar, {onChange: this.handleVolumeChange}), 
+                    React.createElement(CastButton, null)
+                )
 			)
 	    )
     }
@@ -20664,7 +20836,52 @@ var player = React.createClass({displayName: "player",
 
 module.exports = player;
 
-},{"../../components/player/PlayButton":168,"../../stores/PlayerStore":177,"react":162}],170:[function(require,module,exports){
+},{"../../components/player/CastButton":167,"../../components/player/PlayButton":168,"../../components/player/ProgressBar":170,"../../components/player/VolumeBar":171,"../../stores/PlayerStore":181,"react":162}],170:[function(require,module,exports){
+var React = require('react');
+
+var Progress = React.createClass({displayName: "Progress",
+	
+	handleChange: function () {
+	    this.props.onChange(this);
+	}, 
+
+    render: function () {
+
+		return (
+			React.createElement("input", {type: "range", ref: "progressbar", onChange: this.handleChange, className: "player-icon", min: "0", max: "100"})
+		);
+    }
+});
+
+module.exports = Progress;
+
+},{"react":162}],171:[function(require,module,exports){
+var React = require('react');
+
+var Volume = React.createClass({displayName: "Volume",
+
+	handleChange: function () {
+	    this.props.onChange(this);
+	}, 
+
+
+    render: function () {
+
+		return (
+			React.createElement("div", {className: "volume-control"}, 
+				React.createElement("svg", {className: "player-icon", xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24"}, 
+				    React.createElement("path", {d: "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"}), 
+				    React.createElement("path", {d: "M0 0h24v24H0z", fill: "none"})
+				), 
+				React.createElement("input", {type: "range", ref: "volumebar", onChange: this.handleChange, className: "player-icon volume-range", min: "0", max: "100"})
+			)
+		);
+    }
+});
+
+module.exports = Volume;
+
+},{"react":162}],172:[function(require,module,exports){
 var React = require('react');
 
 var playlist = React.createClass({displayName: "playlist",
@@ -20680,7 +20897,106 @@ var playlist = React.createClass({displayName: "playlist",
 
 module.exports = playlist;
 
-},{"react":162}],171:[function(require,module,exports){
+},{"react":162}],173:[function(require,module,exports){
+var React = require('react');
+var PodcastAudiosListItem = require('../../components/podcast/PodcastAudiosListItem');
+var PodcastStore = require('../../stores/PodcastStore');
+
+function audiosItems() {
+    return {
+        data: PodcastStore.getPodcastInfo(),
+        items: PodcastStore.getAudios()
+    };
+}
+
+var PodcastAudiosList = React.createClass({displayName: "PodcastAudiosList",
+   getInitialState: function () {
+        return {data: {}, items: []};
+    },
+        componentWillMount: function (){
+        PodcastStore.addChangeListener(this._onChange);
+    },
+
+    _onChange: function () {
+        this.setState(audiosItems());
+    },  
+
+    render: function () {
+        var component = this;
+        var items = this.state.items.map(function(item, id) {
+            return React.createElement(PodcastAudiosListItem, {podcastData: component.state.data, key: id, item: item})
+        });
+
+        return (
+            React.createElement("ul", {className: "podcast-audios"}, 
+                items
+            )
+        );
+    }
+});
+
+module.exports = PodcastAudiosList;
+
+},{"../../components/podcast/PodcastAudiosListItem":174,"../../stores/PodcastStore":182,"react":162}],174:[function(require,module,exports){
+var PodcastAction = require('../../actions/PodcastAction');
+var React = require('react');
+
+var PodcastAudiosListItem = React.createClass({displayName: "PodcastAudiosListItem",
+
+	handleClick: function () {
+		var audioData = {
+			podcast: this.props.podcastData,
+			audio: this.props.item
+		}
+		PodcastAction.selectAudio(audioData);
+	},
+
+	render: function () {
+		return React.createElement("li", {onClick: this.handleClick}, this.props.item.title)
+	}
+});
+
+module.exports = PodcastAudiosListItem;
+
+},{"../../actions/PodcastAction":163,"react":162}],175:[function(require,module,exports){
+var React = require('react');
+var PodcastStore = require('../../stores/PodcastStore');
+
+function podcastInfo() {
+    return {item: PodcastStore.getPodcastInfo()};
+}
+
+var PodcastInfo = React.createClass({displayName: "PodcastInfo",
+   	getInitialState: function () {
+        return {item: {}};
+    },
+
+    componentWillMount: function () {
+        PodcastStore.addChangeListener(this._onChange);
+    },
+
+    _onChange: function () {
+        this.setState(podcastInfo());
+    },  
+
+    render: function () {
+
+        return (
+            React.createElement("div", {className: "podcast-info"}, 
+
+                React.createElement("img", {className: "podcast-image", src: this.state.item.imageUrl}), 
+                React.createElement("div", {className: "podcast-info-text"}, 
+                    React.createElement("h2", {className: "name"}, this.state.item.name), 
+                    React.createElement("h3", {className: "author"}, this.state.item.author)
+                )
+            )
+        );
+    }
+});
+
+module.exports = PodcastInfo;
+
+},{"../../stores/PodcastStore":182,"react":162}],176:[function(require,module,exports){
 var React = require('react');
 var SubscriptionsList = require('../../components/subscriptions/SubscriptionsList');
 
@@ -20710,7 +21026,7 @@ var Subscriptions = React.createClass({displayName: "Subscriptions",
 
 module.exports = Subscriptions;
 
-},{"../../components/subscriptions/SubscriptionsList":172,"react":162}],172:[function(require,module,exports){
+},{"../../components/subscriptions/SubscriptionsList":177,"react":162}],177:[function(require,module,exports){
 var React = require('react');
 var SubscriptionsStore = require('../../stores/SubscriptionsStore');
 var SubscriptionsAction = require('../../actions/SubscriptionsAction');
@@ -20771,7 +21087,7 @@ var SubscriptionsList = React.createClass({displayName: "SubscriptionsList",
 
 module.exports = SubscriptionsList;
 
-},{"../../actions/SubscriptionsAction":164,"../../components/subscriptions/SubscriptionsListItem":173,"../../stores/SubscriptionsStore":178,"react":162}],173:[function(require,module,exports){
+},{"../../actions/SubscriptionsAction":164,"../../components/subscriptions/SubscriptionsListItem":178,"../../stores/SubscriptionsStore":183,"react":162}],178:[function(require,module,exports){
 var SubscriptionsAction = require('../../actions/SubscriptionsAction');
 var React = require('react');
 
@@ -20791,15 +21107,25 @@ var SubscriptionsListItem = React.createClass({displayName: "SubscriptionsListIt
 		    removeButton = React.createElement("button", {onClick: this.handleRemove}, "X");
 		}
 
+		var imgSrc = 'img/favicon.png';
+		if(this.props.item.thumbnail) {
+		imgSrc = this.props.item.thumbnail
+		}
+
+
 		return (
-			React.createElement("li", null, removeButton, " ", React.createElement("span", {onClick: this.handleClick}, this.props.item.name))
+			React.createElement("li", {onClick: this.handleClick}, 
+				removeButton, 
+				React.createElement("img", {className: "subscription-image", src: imgSrc}), 
+				React.createElement("span", {className: "subscription-name"}, this.props.item.name)
+			)
 		);
 	}
 });
 
 module.exports = SubscriptionsListItem;
 
-},{"../../actions/SubscriptionsAction":164,"react":162}],174:[function(require,module,exports){
+},{"../../actions/SubscriptionsAction":164,"react":162}],179:[function(require,module,exports){
 /*jslint node: true */
 
 module.exports = {
@@ -20812,83 +21138,18 @@ module.exports = {
     SELECT_SUBSCRIPTIONS: 'SELECT_SUBSCRIPTIONS',
     REFRESH_SUBSCRIPTIONS: 'REFRESH_SUBSCRIPTIONS',
     ADD_SUBSCRIPTION: 'ADD_SUBSCRIPTION',
-    REMOVE_SUBSCRIPTION: 'REMOVE_SUBSCRIPTION'
+    REMOVE_SUBSCRIPTION: 'REMOVE_SUBSCRIPTION',
+    UPDATE_SUBSCRIPTION_INFO: 'UPDATE_SUBSCRIPTION_INFO'
 };
 
-},{}],175:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 /*jslint node: true */
 
 var Dispatcher = require('flux').Dispatcher;
 
 module.exports = new Dispatcher();
 
-},{"flux":4}],176:[function(require,module,exports){
-/*global window */
-/*jslint node: true, browser: true */
-
-var AppDispatcher = require('../dispatchers/AppDispatcher');
-var AppConstants = require('../constants/AppConstants');
-
-// var DriveAPI = require('../utils/DriveAPI');
-var assign = require('object-assign');
-var EventEmitter = require('events').EventEmitter;
-var CHANGE_EVENT = "change";
-
-var _audios = [];
-
-var AudiosStore = assign({}, EventEmitter.prototype, {
-
-    emitChange: function () {
-        'use strict';
-        this.emit(CHANGE_EVENT);
-    },
-
-    addChangeListener: function (callback) {
-        'use strict';
-        this.on(CHANGE_EVENT, callback);
-    },
-
-    getAudios: function () {
-        'use strict';
-        return _audios;  
-    }
-});
-
-
-AudiosStore.dispatchToken = AppDispatcher.register(function (action) {
-    'use strict';
-
-    var feedUrl, yql, xmlhttp;
-
-    switch (action.actionType) {
-    case AppConstants.SELECT_SUBSCRIPTION:
-        
-        feedUrl = action.item.url;
-        yql = 'https://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url=\'' + feedUrl + '\'') + '&format=json&callback=';
-
-        xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function () {
-            if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {                 
-                _audios = JSON.parse(xmlhttp.responseText).query.results.rss.channel.item;
-                AudiosStore.emitChange();
-            }
-        };
-
-        xmlhttp.open("GET", yql, true);
-        xmlhttp.send();
-
-        break;
-
-    default:
-        // do nothing
-    }
-
-});
-
-
-module.exports = AudiosStore;
-
-},{"../constants/AppConstants":174,"../dispatchers/AppDispatcher":175,"events":2,"object-assign":7}],177:[function(require,module,exports){
+},{"flux":4}],181:[function(require,module,exports){
 /*jslint node: true */
 
 var AppDispatcher = require('../dispatchers/AppDispatcher');
@@ -20925,7 +21186,7 @@ PlayerStore.dispatchToken = AppDispatcher.register(function (action) {
 
     switch (action.actionType) {
     case AppConstants.SELECT_AUDIO:
-        _playerAudio = action.item.enclosure.url;
+        _playerAudio = action.item;
         PlayerStore.emitChange();
 
         break;
@@ -20938,7 +21199,128 @@ PlayerStore.dispatchToken = AppDispatcher.register(function (action) {
 
 module.exports = PlayerStore;
 
-},{"../constants/AppConstants":174,"../dispatchers/AppDispatcher":175,"events":2,"object-assign":7}],178:[function(require,module,exports){
+},{"../constants/AppConstants":179,"../dispatchers/AppDispatcher":180,"events":2,"object-assign":7}],182:[function(require,module,exports){
+/*global window */
+/*jslint node: true, browser: true */
+
+var AppDispatcher = require('../dispatchers/AppDispatcher');
+var AppConstants = require('../constants/AppConstants');
+var SubscriptionsAction = require('../actions/SubscriptionsAction');
+
+// var DriveAPI = require('../utils/DriveAPI');
+var assign = require('object-assign');
+var EventEmitter = require('events').EventEmitter;
+var CHANGE_EVENT = "change";
+
+var _podcast = {
+    podcastData: {},
+    audios: []
+};
+
+var PodcastStore = assign({}, EventEmitter.prototype, {
+
+    emitChange: function () {
+        'use strict';
+        this.emit(CHANGE_EVENT);
+    },
+
+    addChangeListener: function (callback) {
+        'use strict';
+        this.on(CHANGE_EVENT, callback);
+    },
+
+    getPodcastInfo: function () {
+        'use strict';
+        return _podcast.podcastData;  
+    },
+
+    getAudios: function () {
+        'use strict';
+        return _podcast.audios;  
+    }
+});
+
+
+PodcastStore.dispatchToken = AppDispatcher.register(function (action) {
+    'use strict';
+
+    var feedUrl, yql, xmlhttp, i;
+
+    switch (action.actionType) {
+    case AppConstants.SELECT_SUBSCRIPTION:
+        
+        feedUrl = action.item.url;
+        yql = 'https://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url=\'' + feedUrl + '\'') + '&format=json&callback=';
+
+        xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function () {
+
+            if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {        
+                var channel = JSON.parse(xmlhttp.responseText).query.results.rss.channel;
+                _podcast.audios = channel.item;
+
+                var imageUrl = "";
+                if (channel.hasOwnProperty('thumbnail')) {
+                    imageUrl = channel.thumbnail.url;
+                } else {
+                    if (channel.image) {
+                        var urlImage = null;
+                        var hrefImage = null;
+                        if (Array.isArray && Array.isArray(channel.image)) {
+
+                            var numImage = channel.image.length;
+                            for (i = 0; i < numImage; i += 1) {
+                                if (channel.image[i].hasOwnProperty('url')) {
+                                    urlImage = channel.image[i].url;
+                                } else if (channel.image[i].hasOwnProperty('href')) {
+                                    hrefImage = channel.image[i].href;
+                                }
+                            }
+                        } else if (channel.image[i].hasOwnProperty('url')) {
+                            urlImage = channel.image[i].url;
+                        } else if (channel.image[i].hasOwnProperty('href')) {
+                            hrefImage = channel.image[i].href;                            
+                        }
+                        imageUrl = hrefImage || urlImage;
+                    } 
+                }
+
+                _podcast.podcastData = {
+                    name: action.item.name,
+                    author: channel.author,
+                    imageUrl: imageUrl
+                };
+
+
+                PodcastStore.emitChange();
+
+                // Check for podcast metadata updates
+                if (action.item.thumbnail !== imageUrl) {
+                    SubscriptionsAction.updateInfo({
+                        podcastUrl: action.item.url,
+                        podcastImage: imageUrl
+                    });
+                }
+
+
+            }
+        };
+
+        xmlhttp.open("GET", yql, true);
+        xmlhttp.send();
+
+        break;
+
+    default:
+        // do nothing
+    }
+
+});
+
+
+module.exports = PodcastStore;
+
+},{"../actions/SubscriptionsAction":164,"../constants/AppConstants":179,"../dispatchers/AppDispatcher":180,"events":2,"object-assign":7}],183:[function(require,module,exports){
 /*jslint node: true, browser: true */
 
 var AppDispatcher = require('../dispatchers/AppDispatcher');
@@ -20979,7 +21361,7 @@ var SubscriptionsStore = assign({}, EventEmitter.prototype, {
 SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
     'use strict';
 
-    var feedUrl, yql, xmlhttp, index;
+    var feedUrl, yql, xmlhttp, index, numSubscriptions, i;
 
     switch (action.actionType) {
     case AppConstants.REFRESH_SUBSCRIPTIONS:
@@ -21060,6 +21442,27 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
         break;
 
+    case AppConstants.UPDATE_SUBSCRIPTION_INFO:
+
+        numSubscriptions = _subscriptions.length;
+        for (i = 0; i < numSubscriptions; i += 1) {
+            if (_subscriptions[i].url === action.item.podcastUrl) {
+                _subscriptions[i].thumbnail = action.item.podcastImage;
+            }
+        }
+            
+        SubscriptionsStore.emitChange();
+
+        DriveAPI.searchFile('subscriptions.json', function (response) {
+            if (response.length === 1) {
+                var idFile = response[0].id;
+                DriveAPI.updateFile(idFile, _subscriptions, function (content) {                    
+                    console.log(content);
+                });
+            }                   
+        });
+
+        break;
     default:
         // do nothing
     }
@@ -21068,7 +21471,7 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
 module.exports = SubscriptionsStore;
 
-},{"../constants/AppConstants":174,"../dispatchers/AppDispatcher":175,"../utils/DriveAPI":179,"events":2,"object-assign":7}],179:[function(require,module,exports){
+},{"../constants/AppConstants":179,"../dispatchers/AppDispatcher":180,"../utils/DriveAPI":184,"events":2,"object-assign":7}],184:[function(require,module,exports){
 /*global window, gapi */
 /*jslint node: true, browser: true */
 
@@ -21273,8 +21676,4 @@ module.exports = {
     'readFile': readFile,
     'deleteFile': deleteFile
 };
-
-
-
-
 },{"events":2}]},{},[1]);
