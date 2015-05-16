@@ -34,6 +34,14 @@ var SubscripctionsAction = {
             actionType: AppConstants.REMOVE_SUBSCRIPTION,
             item: item
         });
+    },
+
+    updateInfo: function (item) {
+        'use strict';
+        AppDispatcher.dispatch({
+            actionType: AppConstants.UPDATE_SUBSCRIPTION_INFO,
+            item: item
+        });
     }
 };
 

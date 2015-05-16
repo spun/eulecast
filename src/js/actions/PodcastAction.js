@@ -3,8 +3,8 @@
 var AppConstants = require('../constants/AppConstants');
 var AppDispatcher = require('../dispatchers/AppDispatcher');
 
-var AudiosAction = {
-    select: function (item) {
+var PodcastAction = {
+    selectAudio: function (item) {
         'use strict';
         AppDispatcher.dispatch({
             actionType: AppConstants.SELECT_AUDIO,
@@ -13,4 +13,4 @@ var AudiosAction = {
     }
 };
 
-module.exports = AudiosAction;
+module.exports = PodcastAction;

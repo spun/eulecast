@@ -34,7 +34,7 @@ PlayerStore.dispatchToken = AppDispatcher.register(function (action) {
 
     switch (action.actionType) {
     case AppConstants.SELECT_AUDIO:
-        _playerAudio = action.item.enclosure.url;
+        _playerAudio = action.item;
         PlayerStore.emitChange();
 
         break;

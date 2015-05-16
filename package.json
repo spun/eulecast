@@ -6,13 +6,13 @@
     "license": "MIT",
     "private": true,
     "devDependencies": {
-        "browser-sync": "^2.6.10",
-        "browserify": "^10.0.0",
+        "browser-sync": "^2.7.1",
+        "browserify": "^10.2.0",
         "flux": "^2.0.3",
         "gulp": "^3.8.11",
         "object-assign": "^2.0.0",
-        "react": "^0.13.2",
-        "reactify": "^1.1.0",
+        "react": "^0.13.3",
+        "reactify": "^1.1.1",
         "vinyl-source-stream": "^1.1.0"
     }
 }

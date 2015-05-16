@@ -17,8 +17,18 @@ var SubscriptionsListItem = React.createClass({
 		    removeButton = <button onClick={this.handleRemove}>X</button>;
 		}
 
+		var imgSrc = 'img/favicon.png';
+		if(this.props.item.thumbnail) {
+		imgSrc = this.props.item.thumbnail
+		}
+
+
 		return (
-			<li>{removeButton} <span onClick={this.handleClick}>{this.props.item.name}</span></li>
+			<li onClick={this.handleClick}>
+				{removeButton} 
+				<img className="subscription-image" src={imgSrc} />
+				<span className="subscription-name" >{this.props.item.name}</span>
+			</li>
 		);
 	}
 });

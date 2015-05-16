@@ -38,7 +38,7 @@ var SubscriptionsStore = assign({}, EventEmitter.prototype, {
 SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
     'use strict';
 
-    var feedUrl, yql, xmlhttp, index;
+    var feedUrl, yql, xmlhttp, index, numSubscriptions, i;
 
     switch (action.actionType) {
     case AppConstants.REFRESH_SUBSCRIPTIONS:
@@ -119,6 +119,27 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
         break;
 
+    case AppConstants.UPDATE_SUBSCRIPTION_INFO:
+
+        numSubscriptions = _subscriptions.length;
+        for (i = 0; i < numSubscriptions; i += 1) {
+            if (_subscriptions[i].url === action.item.podcastUrl) {
+                _subscriptions[i].thumbnail = action.item.podcastImage;
+            }
+        }
+            
+        SubscriptionsStore.emitChange();
+
+        DriveAPI.searchFile('subscriptions.json', function (response) {
+            if (response.length === 1) {
+                var idFile = response[0].id;
+                DriveAPI.updateFile(idFile, _subscriptions, function (content) {                    
+                    console.log(content);
+                });
+            }                   
+        });
+
+        break;
     default:
         // do nothing
     }
