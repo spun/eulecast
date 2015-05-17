@@ -1,9 +1,14 @@
 var React = require('react');
+var PlayerAction = require('../../actions/PlayerAction');
 
 var PlayButton = React.createClass({
 
 	handleClick: function () {
-	    this.props.onClick(this);
+		if(this.props.isPlaying) {
+			PlayerAction.pause();
+		} else {
+			PlayerAction.play();
+		}
 	}, 
 
     render: function () {

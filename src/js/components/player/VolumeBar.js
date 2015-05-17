@@ -1,11 +1,12 @@
 var React = require('react');
+var PlayerAction = require('../../actions/PlayerAction');
 
 var Volume = React.createClass({
 
 	handleChange: function () {
-	    this.props.onChange(this);
+        var volumeValue = this.refs.volumebar.getDOMNode().value;
+		PlayerAction.setVolume(volumeValue);
 	}, 
-
 
     render: function () {
 

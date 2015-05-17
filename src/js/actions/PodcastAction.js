@@ -7,7 +7,7 @@ var PodcastAction = {
     selectAudio: function (item) {
         'use strict';
         AppDispatcher.dispatch({
-            actionType: AppConstants.SELECT_AUDIO,
+            actionType: AppConstants.PODCAST_SELECT_AUDIO,
             item: item
         });
     }
