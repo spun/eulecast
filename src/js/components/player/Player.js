@@ -81,22 +81,16 @@ var Player = React.createClass({
     },
 
     _onSetTime: function() {
-		this.state.audio_player.pause();
         var newProgressValue = PlayerStore.getTime();
         this.state.audio_player.currentTime = newProgressValue;
-        this.state.audio_player.play();
     },
 
      _onSetTimeReplay: function() {
-		this.state.audio_player.pause();
         this.state.audio_player.currentTime = this.state.audio_player.currentTime - 10;
-        this.state.audio_player.play();   
     },
 
     _onSetTimeForward: function() {
-		this.state.audio_player.pause();
         this.state.audio_player.currentTime = this.state.audio_player.currentTime + 30;
-        this.state.audio_player.play();   
     },
 
     _onSetVolume: function() {

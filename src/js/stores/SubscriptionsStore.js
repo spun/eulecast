@@ -34,6 +34,34 @@ var SubscriptionsStore = assign({}, EventEmitter.prototype, {
     }
 });
 
+function getChannelImage(channel) {
+    var imageUrl = "";
+    if (channel.hasOwnProperty('thumbnail')) {
+        imageUrl = channel.thumbnail.url;
+    } else {
+        if (channel.image) {
+            var urlImage = null;
+            var hrefImage = null;
+            if (Array.isArray && Array.isArray(channel.image)) {
+
+                var numImage = channel.image.length;
+                for (i = 0; i < numImage; i += 1) {
+                    if (channel.image[i].hasOwnProperty('url')) {
+                        urlImage = channel.image[i].url;
+                    } else if (channel.image[i].hasOwnProperty('href')) {
+                        hrefImage = channel.image[i].href;
+                    }
+                }
+            } else if (channel.image[i].hasOwnProperty('url')) {
+                urlImage = channel.image[i].url;
+            } else if (channel.image[i].hasOwnProperty('href')) {
+                hrefImage = channel.image[i].href;                            
+            }
+            imageUrl = hrefImage || urlImage;
+        } 
+    }
+    return imageUrl;
+}
 
 SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
     'use strict';
@@ -41,14 +69,14 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
     var feedUrl, yql, xmlhttp, index, numSubscriptions, i;
 
     switch (action.actionType) {
-    case AppConstants.REFRESH_SUBSCRIPTIONS:
+    case AppConstants.RELOAD_SUBSCRIPTIONS:
 
         DriveAPI.subscribe('isAuthorized', function (isAuthorized) {
             if (isAuthorized === true) {
                 DriveAPI.searchFile('subscriptions.json', function (response) {
                     if (response.length === 0) {
-                        DriveAPI.createFile('subscriptions.json', _subscriptionsTemp, function () {
-                            _subscriptions = _subscriptionsTemp;                            
+                        DriveAPI.createFile('subscriptions.json', [], function () {
+                            _subscriptions = [];
                             SubscriptionsStore.emitChange();
                         });
                     } else if (response.length === 1) {
@@ -71,34 +99,38 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
         feedUrl = action.item.url;
         yql = 'https://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url=\'' + feedUrl + '\'') + '&format=json&callback=';
 
-        xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function () {
-            if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {                 
-                var channel = JSON.parse(xmlhttp.responseText).query.results.rss.channel;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', yql);
+        xhr.onload = function() {
+            var channel = JSON.parse(xhr.responseText).query.results.rss.channel;
 
-                _subscriptions.push({
-                    'name': channel.title,
-                    'url': action.item.url
-                });
+            _subscriptions.push({
+                'name': channel.title,
+                'url': action.item.url,
+                'thumbnail': getChannelImage(channel),
+                'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
+                'unplayed': 0
+            });
 
-                SubscriptionsStore.emitChange();
+            SubscriptionsStore.emitChange();
 
-                DriveAPI.searchFile('subscriptions.json', function (response) {
-                    if (response.length === 1) {
-                        var idFile = response[0].id;
-                        DriveAPI.updateFile(idFile, _subscriptions, function (updateResponse) {                    
-                            console.log(updateResponse);
-                        });
-                    }                   
-                });
-
-            } 
+            DriveAPI.searchFile('subscriptions.json', function (response) {
+                if (response.length === 1) {
+                    var idFile = response[0].id;
+                    DriveAPI.updateFile(idFile, _subscriptions, function (updateResponse) {                    
+                        console.log(updateResponse);
+                    });
+                }                   
+            });
         };
+        xhr.send();
+        break;
 
-        xmlhttp.open("GET", yql, true);
-        xmlhttp.send();
+    case AppConstants.REFRESH_SUBSCRIPTIONS:
+        console.log('REFRESH');
 
         break;
+
 
     case AppConstants.REMOVE_SUBSCRIPTION:
         index = _subscriptions.indexOf(action.item);

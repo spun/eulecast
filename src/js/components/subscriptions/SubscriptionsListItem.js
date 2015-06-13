@@ -19,7 +19,7 @@ var SubscriptionsListItem = React.createClass({
 
 		var imgSrc = 'img/favicon.png';
 		if(this.props.item.thumbnail) {
-		imgSrc = this.props.item.thumbnail
+			imgSrc = this.props.item.thumbnail;
 		}
 
 
@@ -28,6 +28,7 @@ var SubscriptionsListItem = React.createClass({
 				{removeButton} 
 				<img className="subscription-image" src={imgSrc} />
 				<span className="subscription-name" >{this.props.item.name}</span>
+				<span className="subscription-unplayed" >{this.props.item.unplayed}</span>
 			</li>
 		);
 	}

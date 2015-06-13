@@ -13,6 +13,13 @@ var SubscripctionsAction = {
         });
     },
 
+    reload: function () {
+        'use strict';
+        AppDispatcher.dispatch({
+            actionType: AppConstants.RELOAD_SUBSCRIPTIONS
+        });
+    },    
+
     refresh: function () {
         'use strict';
         AppDispatcher.dispatch({

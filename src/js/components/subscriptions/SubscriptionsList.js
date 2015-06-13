@@ -14,7 +14,14 @@ var SubscriptionsList = React.createClass({
 	},
 
 	componentDidMount: function () {
+	SubscriptionsAction.reload();
+
+	/*setTimeout(function () {
 		SubscriptionsAction.refresh();
+		setInterval(SubscriptionsAction.refresh, 900000);
+	}, 10000);*/
+		
+
 	},
 
 	componentWillMount: function () {
