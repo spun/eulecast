@@ -49,145 +49,174 @@ function subscribe(eventName, callback) {
 
 
 
-var getFileList = function (callback) {
+var getFileList = function () {
     'use strict';
+    return new Promise(function(resolve, reject) {
+        var request = gapi.client.request({
+            'path': '/drive/v2/files',
+            'method': 'GET',        
+            'params': {'q': '\'appfolder\' in parents'}
+        });
 
-    var request = gapi.client.request({
-        'path': '/drive/v2/files',
-        'method': 'GET',        
-        'params': {'q': '\'appfolder\' in parents'}
-    });
-
-    request.execute(function (response) {
-        callback(response.items);
-    });
+        request.execute(function (response) {
+            resolve(response.items);
+        });
+    });  
 };
 
-var getFile = function (fileId, callback) {
+var getFile = function (fileId) {
     'use strict';
 
-    var request = gapi.client.request({
-        'path': '/drive/v2/files/' + fileId,
-        'method': 'GET'
-    });
+    return new Promise(function(resolve, reject) {
 
-    request.execute(function (response) {        
-        callback(response);
-    });
+        var request = gapi.client.request({
+            'path': '/drive/v2/files/' + fileId,
+            'method': 'GET'
+        });
+
+        request.execute(function (response) {        
+            resolve(response);
+        });
+    });    
 };
 
-var readFile = function (fileId, callback) {
+var readFile = function (fileId) {
     'use strict';
 
-    getFile(fileId, function (response) {
-        downloadFile(response, function (content) {
-            callback(content);
+    return new Promise(function(resolve, reject) {
+
+        getFile(fileId).then(function(file) {
+            return downloadFile(file);
+        }).then(function(response) {     
+            resolve(response);
+        }).catch(function(error) {
+            reject(Error("GetFile Error"));
+            console.log("Failed!", error);
         });
     });
 };
 
-var searchFile = function (fileName, callback) {
+var searchFile = function (fileName) {
     'use strict';
-    var request = gapi.client.request({
-        'path': '/drive/v2/files',
-        'method': 'GET',        
-        'params': {'q': '\'appfolder\' in parents and title = \'' + fileName + '\''}
-    });
 
-    request.execute(function (response) {
-        callback(response.items);
+    return new Promise(function(resolve, reject) {
+
+        var request = gapi.client.request({
+            'path': '/drive/v2/files',
+            'method': 'GET',        
+            'params': {'q': '\'appfolder\' in parents and title = \'' + fileName + '\''}
+        });
+
+        request.execute(function (response) {    
+            resolve(response.items);
+        });
+
     });
 };
 
-var createFile = function (fileName, fileContent, callback) {
+var createFile = function (fileName, fileContent) {
     'use strict';
 
-    var boundary = '-------314159265358979323846',
-        delimiter = "\r\n--" + boundary + "\r\n",
-        close_delim = "\r\n--" + boundary + "--";
+    return new Promise(function(resolve, reject) {
 
-    var contentType = 'application/json';
-    var metadata = {
-        'title': fileName,
-        'mimeType': contentType,
-        'parents': [{'id': 'appfolder'}]
-    };
+        var boundary = '-------314159265358979323846',
+            delimiter = "\r\n--" + boundary + "\r\n",
+            close_delim = "\r\n--" + boundary + "--";
 
-    var base64Data = window.btoa(JSON.stringify(fileContent));
-    var multipartRequestBody =
-            delimiter +
-            'Content-Type: application/json\r\n\r\n' +
-            JSON.stringify(metadata) +
-            delimiter +
-            'Content-Type: ' + contentType + '\r\n' +
-            'Content-Transfer-Encoding: base64\r\n' +
-            '\r\n' +
-            base64Data +
-            close_delim;
+        var contentType = 'application/json';
+        var metadata = {
+            'title': fileName,
+            'mimeType': contentType,
+            'parents': [{'id': 'appfolder'}]
+        };
 
-    var request = gapi.client.request({
-        'path': '/upload/drive/v2/files',
-        'method': 'POST',
-        'params': {'uploadType': 'multipart'},
-        'headers': {
-            'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
-        },
-        'body': multipartRequestBody
-    });
+        var base64Data = window.btoa(JSON.stringify(fileContent));
+        var multipartRequestBody =
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' +
+                JSON.stringify(metadata) +
+                delimiter +
+                'Content-Type: ' + contentType + '\r\n' +
+                'Content-Transfer-Encoding: base64\r\n' +
+                '\r\n' +
+                base64Data +
+                close_delim;
 
-    request.execute(function (response) {
-        callback(response);
-    });
-};
+        var request = gapi.client.request({
+            'path': '/upload/drive/v2/files',
+            'method': 'POST',
+            'params': {'uploadType': 'multipart'},
+            'headers': {
+                'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+            },
+            'body': multipartRequestBody
+        });
 
+        request.execute(function (response) {   
+            resolve(response);
+        });
 
-var updateFile = function (fileId, fileContent, callback) {
-    'use strict';
-
-    var request = gapi.client.request({
-        'path': '/upload/drive/v2/files/' + fileId,
-        'method': 'PUT',
-        'params': {'uploadType': 'media'},
-        'body': JSON.stringify(fileContent)
-    });
-
-    request.execute(function (response) {
-        callback(response);
     });
 };
 
 
-var deleteFile = function (fileId, callback) {
+var updateFile = function (fileId, fileContent) {
     'use strict';
 
-    var request = gapi.client.request({
-        'path': '/drive/v2/files/' + fileId,
-        'method': 'DELETE'
-    });
+    return new Promise(function(resolve, reject) {
+        var request = gapi.client.request({
+            'path': '/upload/drive/v2/files/' + fileId,
+            'method': 'PUT',
+            'params': {'uploadType': 'media'},
+            'body': JSON.stringify(fileContent)
+        });
 
-    request.execute(function (response) {
-        callback(response);
+        request.execute(function (response) {
+                resolve(response);
+        });
     });
 };
 
 
-function downloadFile(file, callback) {
+var deleteFile = function (fileId) {
     'use strict';
 
-    if (file.downloadUrl) {
-        var accessToken = gapi.auth.getToken().access_token;
-        fetch(file.downloadUrl, { 
-            headers: { "Authorization": 'Bearer ' + accessToken }
-        }).then(function(response) { 
-            response.json().then(function(data) {
-                callback(data);                
+    return new Promise(function(resolve, reject) {
+
+        var request = gapi.client.request({
+            'path': '/drive/v2/files/' + fileId,
+            'method': 'DELETE'
+        });
+
+        request.execute(function (response) {    
+            resolve(response);
+        });
+    });
+};
+
+
+function downloadFile(file) {
+    'use strict';
+
+    return new Promise(function(resolve, reject) {
+        if (file.downloadUrl) {
+            var accessToken = gapi.auth.getToken().access_token;
+
+            fetch(file.downloadUrl, { 
+                headers: { "Authorization": 'Bearer ' + accessToken }
+            }).then(function(response) { 
+                response.json().then(function(data) {
+                    resolve(data);            
+                });
+            }).catch(function(err) {
+                reject(Error("Fetch Error"));
             });
-        }).catch(function(err) {
-            callback(null);
-        });
-    } else {
-        callback(null);
-    }
+
+        } else {
+            reject(Error("DownloadUrl Error"));
+        }
+    });
+    
 }
 
 

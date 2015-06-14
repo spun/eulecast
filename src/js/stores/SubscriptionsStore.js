@@ -73,7 +73,28 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
         DriveAPI.subscribe('isAuthorized', function (isAuthorized) {
             if (isAuthorized === true) {
-                DriveAPI.searchFile('subscriptions.json', function (response) {
+
+                DriveAPI.searchFile('subscriptions.json').then(function(files) {
+
+                    if (files.length === 0) {
+                        DriveAPI.createFile('subscriptions.json').then(function(response) {
+                            _subscriptions = [];
+                            SubscriptionsStore.emitChange();
+                        });
+
+                    } else if (files.length === 1) {
+                        var idFile = files[0].id;
+                        DriveAPI.readFile(idFile).then(function(response) {
+                            _subscriptions = response;                           
+                            SubscriptionsStore.emitChange();
+                        });
+                    } else {
+                        console.log('Multiple subscriptions files', files);
+                    }
+
+
+                });
+                /*DriveAPI.searchFile('subscriptions.json', function (response) {
                     if (response.length === 0) {
                         DriveAPI.createFile('subscriptions.json', [], function () {
                             _subscriptions = [];
@@ -88,7 +109,9 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
                     } else {
                         console.log('Multiple subscriptions files', response);
                     }
-                });
+
+
+                });*/
             }
         });
 
@@ -103,17 +126,7 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
             response.json().then(function(data) { 
 
-                 var channel = data.query.results.rss.channel;
-
-                console.log('A');
-                console.log({
-                    'name': channel.title,
-                    'url': action.item.url,
-                    'thumbnail': getChannelImage(channel),
-                    'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
-                    'unplayed': 0
-                });
-
+                var channel = data.query.results.rss.channel;
 
                 _subscriptions.push({
                     'name': channel.title,
@@ -122,7 +135,6 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
                     'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
                     'unplayed': 0
                 });
-
                 
                 SubscriptionsStore.emitChange();
 
