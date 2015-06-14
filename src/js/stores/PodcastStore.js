@@ -50,11 +50,11 @@ PodcastStore.dispatchToken = AppDispatcher.register(function (action) {
         feedUrl = action.item.url;
         yql = 'https://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url=\'' + feedUrl + '\'') + '&format=json&callback=';
 
-        xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function () {
+        fetch(yql).then(function(response) { 
 
-            if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {        
-                var channel = JSON.parse(xmlhttp.responseText).query.results.rss.channel;
+            response.json().then(function(data) { 
+
+                var channel = data.query.results.rss.channel;
                 _podcast.audios = channel.item;
 
                 var imageUrl = "";
@@ -99,13 +99,10 @@ PodcastStore.dispatchToken = AppDispatcher.register(function (action) {
                         podcastImage: imageUrl
                     });
                 }
-
-
-            }
-        };
-
-        xmlhttp.open("GET", yql, true);
-        xmlhttp.send();
+            });
+        }).catch(function(err) {
+            console.log(err.message);
+        });
 
         break;
 

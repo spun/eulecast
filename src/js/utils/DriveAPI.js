@@ -81,7 +81,7 @@ var readFile = function (fileId, callback) {
 
     getFile(fileId, function (response) {
         downloadFile(response, function (content) {
-            callback(JSON.parse(content));
+            callback(content);
         });
     });
 };
@@ -176,16 +176,15 @@ function downloadFile(file, callback) {
 
     if (file.downloadUrl) {
         var accessToken = gapi.auth.getToken().access_token;
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', file.downloadUrl);
-        xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-        xhr.onload = function () {
-            callback(xhr.responseText);
-        };
-        xhr.onerror = function () {
+        fetch(file.downloadUrl, { 
+            headers: { "Authorization": 'Bearer ' + accessToken }
+        }).then(function(response) { 
+            response.json().then(function(data) {
+                callback(data);                
+            });
+        }).catch(function(err) {
             callback(null);
-        };
-        xhr.send();
+        });
     } else {
         callback(null);
     }

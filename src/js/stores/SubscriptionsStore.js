@@ -99,31 +99,48 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
         feedUrl = action.item.url;
         yql = 'https://query.yahooapis.com/v1/public/yql?q=' + encodeURIComponent('select * from xml where url=\'' + feedUrl + '\'') + '&format=json&callback=';
 
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', yql);
-        xhr.onload = function() {
-            var channel = JSON.parse(xhr.responseText).query.results.rss.channel;
+        fetch(yql).then(function(response) { 
 
-            _subscriptions.push({
-                'name': channel.title,
-                'url': action.item.url,
-                'thumbnail': getChannelImage(channel),
-                'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
-                'unplayed': 0
+            response.json().then(function(data) { 
+
+                 var channel = data.query.results.rss.channel;
+
+                console.log('A');
+                console.log({
+                    'name': channel.title,
+                    'url': action.item.url,
+                    'thumbnail': getChannelImage(channel),
+                    'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
+                    'unplayed': 0
+                });
+
+
+                _subscriptions.push({
+                    'name': channel.title,
+                    'url': action.item.url,
+                    'thumbnail': getChannelImage(channel),
+                    'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
+                    'unplayed': 0
+                });
+
+                
+                SubscriptionsStore.emitChange();
+
+                /*DriveAPI.searchFile('subscriptions.json', function (response) {
+                    if (response.length === 1) {
+                        var idFile = response[0].id;
+                        DriveAPI.updateFile(idFile, _subscriptions, function (updateResponse) {                    
+                            console.log(updateResponse);
+                        });
+                    }                   
+                });*/
+
             });
 
-            SubscriptionsStore.emitChange();
+        }).catch(function(err) {
+            console.log(err.message);
+        });
 
-            DriveAPI.searchFile('subscriptions.json', function (response) {
-                if (response.length === 1) {
-                    var idFile = response[0].id;
-                    DriveAPI.updateFile(idFile, _subscriptions, function (updateResponse) {                    
-                        console.log(updateResponse);
-                    });
-                }                   
-            });
-        };
-        xhr.send();
         break;
 
     case AppConstants.REFRESH_SUBSCRIPTIONS:
