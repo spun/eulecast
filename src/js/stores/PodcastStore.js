@@ -6,6 +6,8 @@ var AppConstants = require('../constants/AppConstants');
 var SubscriptionsAction = require('../actions/SubscriptionsAction');
 
 // var DriveAPI = require('../utils/DriveAPI');
+var ImageUtils = require('../utils/ImageUtils');
+
 var assign = require('object-assign');
 var EventEmitter = require('events').EventEmitter;
 var CHANGE_EVENT = "change";
@@ -57,46 +59,25 @@ PodcastStore.dispatchToken = AppDispatcher.register(function (action) {
                 var channel = data.query.results.rss.channel;
                 _podcast.audios = channel.item;
 
-                var imageUrl = "";
-                if (channel.hasOwnProperty('thumbnail')) {
-                    imageUrl = channel.thumbnail.url;
-                } else {
-                    if (channel.image) {
-                        var urlImage = null;
-                        var hrefImage = null;
-                        if (Array.isArray && Array.isArray(channel.image)) {
-
-                            var numImage = channel.image.length;
-                            for (i = 0; i < numImage; i += 1) {
-                                if (channel.image[i].hasOwnProperty('url')) {
-                                    urlImage = channel.image[i].url;
-                                } else if (channel.image[i].hasOwnProperty('href')) {
-                                    hrefImage = channel.image[i].href;
-                                }
-                            }
-                        } else if (channel.image[i].hasOwnProperty('url')) {
-                            urlImage = channel.image[i].url;
-                        } else if (channel.image[i].hasOwnProperty('href')) {
-                            hrefImage = channel.image[i].href;                            
-                        }
-                        imageUrl = hrefImage || urlImage;
-                    } 
-                }
+                var channelImage = ImageUtils.getChannelImage(channel);
 
                 _podcast.podcastData = {
                     name: action.item.name,
                     author: channel.author,
-                    imageUrl: imageUrl
+                    imageUrl: channelImage
                 };
 
 
                 PodcastStore.emitChange();
 
                 // Check for podcast metadata updates
-                if (action.item.thumbnail !== imageUrl) {
-                    SubscriptionsAction.updateInfo({
-                        podcastUrl: action.item.url,
-                        podcastImage: imageUrl
+                if (action.item.channelImage !== channelImage) {
+                    ImageUtils.resizeImageSrc(channelImage, 50, 50).then(function(response) {
+                        SubscriptionsAction.updateInfo({
+                            podcastUrl: action.item.url,
+                            podcastThumbnail: response,
+                            podcastImage: channelImage
+                        });
                     });
                 }
             });

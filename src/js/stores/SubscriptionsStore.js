@@ -4,6 +4,7 @@ var AppDispatcher = require('../dispatchers/AppDispatcher');
 var AppConstants = require('../constants/AppConstants');
 
 var DriveAPI = require('../utils/DriveAPI');
+var ImageUtils = require('../utils/ImageUtils');
 var assign = require('object-assign');
 
 var EventEmitter = require('events').EventEmitter;
@@ -34,34 +35,11 @@ var SubscriptionsStore = assign({}, EventEmitter.prototype, {
     }
 });
 
-function getChannelImage(channel) {
-    var imageUrl = "";
-    if (channel.hasOwnProperty('thumbnail')) {
-        imageUrl = channel.thumbnail.url;
-    } else {
-        if (channel.image) {
-            var urlImage = null;
-            var hrefImage = null;
-            if (Array.isArray && Array.isArray(channel.image)) {
 
-                var numImage = channel.image.length;
-                for (i = 0; i < numImage; i += 1) {
-                    if (channel.image[i].hasOwnProperty('url')) {
-                        urlImage = channel.image[i].url;
-                    } else if (channel.image[i].hasOwnProperty('href')) {
-                        hrefImage = channel.image[i].href;
-                    }
-                }
-            } else if (channel.image[i].hasOwnProperty('url')) {
-                urlImage = channel.image[i].url;
-            } else if (channel.image[i].hasOwnProperty('href')) {
-                hrefImage = channel.image[i].href;                            
-            }
-            imageUrl = hrefImage || urlImage;
-        } 
-    }
-    return imageUrl;
-}
+
+
+
+
 
 SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
     'use strict';
@@ -91,27 +69,7 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
                     } else {
                         console.log('Multiple subscriptions files', files);
                     }
-
-
                 });
-                /*DriveAPI.searchFile('subscriptions.json', function (response) {
-                    if (response.length === 0) {
-                        DriveAPI.createFile('subscriptions.json', [], function () {
-                            _subscriptions = [];
-                            SubscriptionsStore.emitChange();
-                        });
-                    } else if (response.length === 1) {
-                        var idFile = response[0].id;
-                        DriveAPI.readFile(idFile, function (content) {
-                            _subscriptions = content;                           
-                            SubscriptionsStore.emitChange();
-                        });
-                    } else {
-                        console.log('Multiple subscriptions files', response);
-                    }
-
-
-                });*/
             }
         });
 
@@ -128,24 +86,28 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
 
                 var channel = data.query.results.rss.channel;
 
-                _subscriptions.push({
-                    'name': channel.title,
-                    'url': action.item.url,
-                    'thumbnail': getChannelImage(channel),
-                    'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
-                    'unplayed': 0
-                });
+                var channelImage = ImageUtils.getChannelImage(channel)
+                ImageUtils.resizeImageSrc(channelImage, 50, 50).then(function(response) {
                 
-                SubscriptionsStore.emitChange();
+                    _subscriptions.push({
+                        'name': channel.title,
+                        'url': action.item.url,
+                        'thumbnail': response,
+                        'channelImage': channelImage,
+                        'lastPublicationHash': encodeURIComponent(channel.item[0].enclosure.url),
+                        'unplayed': 0
+                    });
 
-                /*DriveAPI.searchFile('subscriptions.json', function (response) {
-                    if (response.length === 1) {
-                        var idFile = response[0].id;
-                        DriveAPI.updateFile(idFile, _subscriptions, function (updateResponse) {                    
-                            console.log(updateResponse);
-                        });
-                    }                   
-                });*/
+                    SubscriptionsStore.emitChange();
+
+                    DriveAPI.searchFile('subscriptions.json').then(function (files) {
+                        if (files.length === 1) {
+                            var idFile = files[0].id;
+                            DriveAPI.updateFile(idFile, _subscriptions);
+                        }                   
+                    });
+
+                });
 
             });
 
@@ -185,18 +147,17 @@ SubscriptionsStore.dispatchToken = AppDispatcher.register(function (action) {
         numSubscriptions = _subscriptions.length;
         for (i = 0; i < numSubscriptions; i += 1) {
             if (_subscriptions[i].url === action.item.podcastUrl) {
-                _subscriptions[i].thumbnail = action.item.podcastImage;
+                _subscriptions[i].thumbnail = action.item.podcastThumbnail;
+                _subscriptions[i].channelImage = action.item.podcastImage;
             }
         }
             
         SubscriptionsStore.emitChange();
 
-        DriveAPI.searchFile('subscriptions.json', function (response) {
+        DriveAPI.searchFile('subscriptions.json').then(function (response) {
             if (response.length === 1) {
                 var idFile = response[0].id;
-                DriveAPI.updateFile(idFile, _subscriptions, function (content) {                    
-                    console.log(content);
-                });
+                DriveAPI.updateFile(idFile, _subscriptions);
             }                   
         });
 
